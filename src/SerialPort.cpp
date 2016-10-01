@@ -31,6 +31,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 #include <signal.h>
 #include <strings.h>
 #include <cstring>
@@ -663,12 +665,13 @@ SerialPort::SerialPortImpl::Open()
                                      *this ) ;
 
     /*
-     * Direct all SIGIO and SIGURG signals for the port to the current
-     * process.
-     */
-    if ( fcntl( mFileDescriptor,
-                F_SETOWN,
-                getpid() ) < 0 )
+    * Direct all SIGIO and SIGURG signals for the port to the current
+    * thread.
+    */
+    struct f_owner_ex this_thread;
+    this_thread.type = F_OWNER_TID;
+    this_thread.pid = syscall(SYS_gettid);
+    if ( fcntl( mFileDescriptor, F_SETOWN_EX, &this_thread ) < 0 )
     {
         throw SerialPort::OpenFailed( strerror(errno) ) ;
     }
